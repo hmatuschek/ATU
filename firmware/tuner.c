@@ -105,6 +105,7 @@ void tuner_poll() {
       swr_read(&swr, &pwr);
       if (swr < _last_swr) {
         _continue = 1;
+        _last_swr = swr;
         return;
       }
     }
@@ -116,6 +117,7 @@ void tuner_poll() {
       swr_read(&swr, &pwr);
       if (swr < _last_swr) {
         _continue = 1;
+        _last_swr = swr;
         return;
       }
     }
@@ -132,6 +134,7 @@ void tuner_poll() {
       swr_read(&swr, &pwr);
       if (swr < _last_swr) {
         _continue = 1;
+        _last_swr = swr;
         return;
       }
     }
@@ -143,6 +146,7 @@ void tuner_poll() {
       swr_read(&swr, &pwr);
       if (swr < _last_swr) {
         _continue = 1;
+        _last_swr = swr;
         return;
       }
     }
@@ -152,7 +156,7 @@ void tuner_poll() {
       _continue = 0;
       _tuner_state = TUNER_TUNE_C;
     } else {
-      // other wise, if L is optimal and C has not been chanaged -> done.
+      // other wise, if L & C is optimal -> done.
       _tuner_state = TUNER_TUNED;
       _tuner_count = 0;
       led_set(LED_OFF);
@@ -169,6 +173,7 @@ void tuner_tick() {
       _tuner_state = TUNER_IDLE;
     }
   }
+
   if (TUNER_WAIT == _tuner_state){
     _tuner_count++;
     if (_tuner_count >= 5000) {
