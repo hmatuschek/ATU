@@ -1,0 +1,3 @@
+[submodule "DM3MAT"]
+	path = DM3MAT
+	url = https://github.com/hmatuschek/kicad-dm3mat.git

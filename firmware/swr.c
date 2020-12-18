@@ -6,12 +6,19 @@ void swr_init() {
   ADCSRA |= ((1<<ADPS2) | (1<<ADPS1) | (0<<ADPS0));
 }
 
-void swr_read(uint8_t *swr, uint8_t *pwr) {
-  int32_t fwd=0, rev=0;
-
+void swr_start() {
   // enable ADC
   ADCSRA |= (1<<ADEN);
-  for (uint8_t n=0; n<64; n++) {
+}
+
+void swr_end() {
+  // disable ADC
+  ADCSRA &= ~(1<<ADEN);
+}
+
+uint16_t swr_read() {
+  int32_t fwd=0, rev=0;
+  for (uint8_t i=0; i<SWR_NUM_MEASURE; i++) {
     // select FWD channel
     ADMUX = (ADC_FWD_REF | ADC_FWD_CHANNEL);
     // start conversion
@@ -30,26 +37,23 @@ void swr_read(uint8_t *swr, uint8_t *pwr) {
     }
     rev += ADC;
   }
-  // disable ADC
-  ADCSRA &= ~(1<<ADEN);
 
-  *swr = 10;
-  if (fwd > 1)
-    *swr = (10*fwd+10*rev)/(fwd-rev);
+  fwd /= SWR_NUM_MEASURE;
+  rev /= SWR_NUM_MEASURE;
 
-  fwd *= 10;
-  fwd = (fwd >> 16);
-  fwd *= fwd;
-  *pwr = fwd / 500;
+  uint16_t swr = 9999;
+  if ((fwd > 102) && (rev<fwd))
+    swr = (100*fwd+100*rev)/(fwd-rev);
+  else if (fwd <= 102)
+    return 0;
+  return swr;
 }
 
 
 uint8_t pwr_read() {
   int32_t fwd=0;
 
-  // enable ADC
-  ADCSRA |= (1<<ADEN);
-  for (uint8_t n=0; n<64; n++) {
+  for (uint8_t n=0; n<SWR_NUM_MEASURE; n++) {
     // select FWD channel
     ADMUX = (ADC_FWD_REF | ADC_FWD_CHANNEL);
     // start conversion
@@ -59,12 +63,11 @@ uint8_t pwr_read() {
     }
     fwd += ADC;
   }
-  // disable ADC
-  ADCSRA &= ~(1<<ADEN);
+  fwd /= SWR_NUM_MEASURE;
 
-  fwd *= 10;
-  fwd = (fwd>>16);
+  fwd *= 500;
+  fwd = (fwd>>10);
   fwd *= fwd;
-  fwd /= 500;
+  fwd /= 50;
   return fwd;
 }

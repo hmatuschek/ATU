@@ -1,4 +1,6 @@
 #include "relay.h"
+#include "util/delay.h"
+#include "config.h"
 
 void
 relay_init() {
@@ -16,6 +18,14 @@ relay_init() {
   DDR_L6 |= (1<<BIT_L6); PORT_L6 &= ~(1<<BIT_L6);
 
   DDR_IO |= (1<<BIT_IO); PORT_IO &= ~(1<<BIT_IO);
+
+#if RESET_ANIMATION
+  for (uint8_t i=0; i<12; i++) {
+    relay_clear(RELAY_ALL);
+    relay_set((1<<i));
+    _delay_ms(100);
+  }
+#endif
 }
 
 void
