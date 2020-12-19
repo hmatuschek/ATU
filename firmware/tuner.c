@@ -58,6 +58,7 @@ void add_log(uint16_t swr) {
 }
 
 void tuner_init() {
+  led_set(LED_ON);
   tuner_off();
   tick_add_callback(tuner_tick);
 }
@@ -69,6 +70,9 @@ void tuner_off() {
 }
 
 void tuner_set_state(State state) {
+  if (state == _tuner_state)
+    return;
+
   _tuner_state = state;
   _tuner_count = 0;
 
