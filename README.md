@@ -1,10 +1,10 @@
 # Simple and Portable QRP Automatic Antenna Tuner
 This is a first prototype for a QRP automatic antenna tuner. The final revision should provide
 
-  - [x] Small form factor. The chasis is already set: It should fit nicely into a 10 x 10 x 3cm
-        Fischer chasis.
+  - [x] Small form factor. The chassis is already set: It should fit nicely into a 10 x 10 x 3cm
+        Fischer chassis.
   - [x] Tune a random wire of 10m-ish length + 1:9 UnUn on all Bands from 80m to 10m.
-  - [ ] Battery powered. The chasis should contain a rechargeable battery including its charging
+  - [ ] Battery powered. The chassis should contain a rechargeable battery including its charging
         circuit.
   - [ ] Using bi-stable relays the tuner should only consume power during the actual tuning.
         This increases the battery live extensively.
