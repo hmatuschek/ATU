@@ -1,3 +1,0 @@
-(fp_lib_table
-  (lib (name DM3MAT)(type KiCad)(uri ${KIPRJMOD}/DM3MAT/DM3MAT.pretty)(options "")(descr ""))
-)

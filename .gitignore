@@ -1,3 +1,6 @@
 *-bak
 *.lib
 fp-info-cache
+doc/latex
+doc/html
+CMakeLists.txt.user
