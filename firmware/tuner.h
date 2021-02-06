@@ -8,7 +8,7 @@
 
 /** @defgroup tuner Automatic Antenna Tuner (ATU) logic
  * This module implements the actual tuning algorithm. That is, it measues the SWR and tries to
- * find a combination of Ls & Cs to get the Antenna to appear resonant to the tuner ans therfore
+ * find a combination of Ls & Cs to get the antenna to appear resonant to the tuner and therfore
  * to the radio.
  *
  * \dot
@@ -65,9 +65,11 @@ void tuner_start();
 /** Disables the tuner and disconnects all Ls & Cs from the antenna. This also stops any ongoing
  * tuning.
  * @ingroup tuner */
-void tuner_off();
+void tuner_reset();
 
+/** Returns 1 if tuner is in sleep state. */
 uint8_t tuner_is_sleeping();
+/** Wakes tuner up. I.e., enter idle state. */
 void tuner_wakeup();
 /** Returns @c 1 if tuner is waiting for power to rise.
  * @ingroup tuner */
@@ -78,7 +80,7 @@ uint8_t tuner_is_tuning();
 /** Returns @c 1 if tuner is idle.
  * @ingroup tuner */
 uint8_t tuner_is_idle();
-
+/** Retuns 1 if tuner is already tuned. */
 uint8_t tuner_is_tuned();
 
 void tuner_error();
