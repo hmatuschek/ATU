@@ -22,7 +22,7 @@ void led_init() {
 
   tick_add_callback(led_tick);
 
-#if RESET_ANIMATION
+#ifdef RESET_ANIMATION
   led_off();
   PORT_LED_ACT |= (1<<BIT_LED_ACT);
   _delay_ms(100);

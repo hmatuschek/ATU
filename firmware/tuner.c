@@ -467,7 +467,7 @@ void tuner_tick() {
     }
   }
 
-#if POWER_DOWN_ON_IDLE
+#ifdef POWER_DOWN_ON_IDLE
   if (tuner_is_idle()) {
     _tuner_count++;
     if (10000 == _tuner_count) {
