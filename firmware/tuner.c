@@ -86,7 +86,7 @@ typedef struct {
 
 LogEntry _log[256] EEMEM;
 uint8_t _log_index = 0;
-void add_log(uint16_t swr) {
+void add_log(uint16_t swr, uint8_t L, int8_t C) {
 #if LOG_TUING
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
     LogEntry entry = {L, C, swr};
@@ -298,7 +298,7 @@ void tuner_poll() {
     _delay_ms(TUNER_FINE_DELAY);
     // Get initial SWR reading
     tuner_set_min_swr(swr_read(), tuner_L(), tuner_C());
-    add_log(tuner_min_swr());
+    add_log(tuner_min_swr(), tuner_L(), tuner_C());
     led_set_swr(tuner_min_swr());
 
     if (tuner_is_tuned()) {
@@ -315,7 +315,7 @@ void tuner_poll() {
       tuner_set(_tuner_state.L, c + sign()*c_step());
       _delay_ms(TUNER_COARSE_DELAY);
       swr = swr_read();
-      add_log(swr);
+      add_log(swr, tuner_L(), tuner_C());
       led_set_swr(swr);
       if (SWR_LOW_POWER == swr) {
         // Cannot continue (low power, wait for more)
@@ -346,7 +346,7 @@ void tuner_poll() {
       tuner_set(l+l_step(), 0);
       _delay_ms(TUNER_COARSE_DELAY);
       swr = swr_read();
-      add_log(swr);
+      add_log(swr, tuner_L(), tuner_C());
       led_set_swr(swr);
       if (SWR_LOW_POWER == swr) {
         // pass
@@ -383,7 +383,7 @@ void tuner_poll() {
       tuner_set(tuner_L(), c+1);
       _delay_ms(TUNER_FINE_DELAY);
       swr = swr_read();
-      add_log(swr);
+      add_log(swr, tuner_L(), tuner_C());
       led_set_swr(swr);
       if (swr < tuner_min_swr()) {
         tuner_set_min_swr(swr, tuner_L(), tuner_C());
@@ -398,7 +398,7 @@ void tuner_poll() {
       tuner_set(tuner_L(), c-1);
       _delay_ms(TUNER_FINE_DELAY);
       swr = swr_read();
-      add_log(swr);
+      add_log(swr, tuner_L(), tuner_C());
       led_set_swr(swr);
       if (swr < tuner_min_swr()) {
         tuner_set_min_swr(swr, tuner_L(), tuner_C());
@@ -419,7 +419,7 @@ void tuner_poll() {
       tuner_set(l+1, tuner_C());
       _delay_ms(TUNER_FINE_DELAY);
       swr = swr_read();
-      add_log(swr);
+      add_log(swr, tuner_L(), tuner_C());
       led_set_swr(swr);
       if (swr < tuner_min_swr()) {
         tuner_set_min_swr(swr, tuner_L(), tuner_C());
@@ -434,7 +434,7 @@ void tuner_poll() {
       tuner_set(l-1, tuner_C());
       _delay_ms(TUNER_FINE_DELAY);
       swr = swr_read();
-      add_log(swr);
+      add_log(swr, tuner_L(), tuner_C());
       led_set_swr(swr);
       if (swr < tuner_min_swr()) {
         tuner_set_min_swr(swr, tuner_L(), tuner_C());
