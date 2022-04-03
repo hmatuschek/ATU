@@ -17,7 +17,7 @@ void swr_end() {
 }
 
 uint16_t swr_read() {
-  int32_t fwd=0, rev=0;
+  int32_t fwd=0, rev=0, pwr=0;
   for (uint8_t i=0; i<SWR_NUM_MEASURE; i++) {
     // select FWD channel
     ADMUX = (ADC_FWD_REF | ADC_FWD_CHANNEL);
@@ -41,16 +41,22 @@ uint16_t swr_read() {
   fwd /= SWR_NUM_MEASURE;
   rev /= SWR_NUM_MEASURE;
 
+  // Compute power
+  pwr = fwd*500;
+  pwr = (pwr>>10);
+  pwr *= pwr;
+  pwr /= 50;
+
   uint16_t swr = 9999;
-  if ((fwd > 102) && (rev<fwd))
+  if ((pwr >= MIN_POWER) && (rev<fwd))
     swr = (100*fwd+100*rev)/(fwd-rev);
-  else if (fwd <= 102)
+  else if (pwr <= MIN_POWER)
     return 0;
   return swr;
 }
 
 
-uint8_t pwr_read() {
+uint16_t pwr_read() {
   int32_t fwd=0;
 
   for (uint8_t n=0; n<SWR_NUM_MEASURE; n++) {

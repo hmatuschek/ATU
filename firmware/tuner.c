@@ -3,66 +3,59 @@
 #include "relay.h"
 #include "swr.h"
 #include "tick.h"
+#include "log.h"
 #include <util/delay.h>
-#include <avr/eeprom.h>
-#include <util/atomic.h>
 
 #define ABS(a) ((a<0) ? -a : a)
 
+/** Stages of tuning. Starting with IDLE after reset. */
 typedef enum {
-  STAGE_IDLE  = 0,
-  STAGE_WAIT  = 1,
-  STAGE_TUNE  = 2,
-  STAGE_SLEEP = 3
+  STAGE_IDLE  = 0,      ///< Initial state.
+  STAGE_WAIT  = 1,      ///< Waits for the input power to raise above MIN_POWER.
+  STAGE_TUNE  = 2,      ///< Tuning
+  STAGE_SLEEP = 3       ///< After tuning, reenters IDLE, may enter SLEEP after some time in idle.
 } Stage;
 
+/** Possible elements to tune. */
 typedef enum {
-  TUNE_C = 0,
-  TUNE_L = 1
+  TUNE_C = 0,           ///< Tune the Cs
+  TUNE_L = 1            ///< Tune the Ls
 } Element;
 
+/** Possible tuning modes. */
 typedef enum {
-  COARSE = 0,
-  FINE   = 1
+  COARSE = 0,           ///< In a fist run, the Cs and Ls are tuned coarse.
+  FINE   = 1            ///< In a second step, they are tuned fine. Also once tuned, only a fine
+                        ///  tune is performed.
 } Grain;
 
+/** High/Low Z tune. */
 typedef enum {
-  POSITIVE = 0,
-  NEGATIVE = 1
+  POSITIVE = 0,         ///< Cs at the input.
+  NEGATIVE = 1          ///< Cs at the output.
 } Direction;
 
+/** Combined state of the tuner. */
 typedef struct {
-  uint8_t stage : 3,
-    tuned       : 1,
-    element     : 1,
-    grain       : 1,
-    final       : 1,
-    direction   : 1;
+  uint8_t stage : 3,    ///< State of tuning, IDLE, Wait, ...
+    tuned       : 1,    ///< If 1, the network is tuned already.
+    element     : 1,    ///< Which elements to tune.
+    grain       : 1,    ///< Coarse or fine?
+    final       : 1,    ///< Final round of tuning?
+    direction   : 1;    ///< Cs at input or output?
 
-  uint8_t L;
-  int8_t  C;
+  uint8_t L;            ///< The currently selected Ls.
+  int8_t  C;            ///< The currently selected Cs.
 
-  uint16_t swr_min;
-  uint8_t l_min;
-  int8_t  c_min;
+  // Optimum found so far.
+  uint16_t swr_min;     ///< Minimum VSWR yet.
+  uint8_t l_min;        ///< Best L.
+  int8_t  c_min;        ///< Best C.
 } State;
 
 
-volatile State _tuner_state = {
-  STAGE_IDLE, // < Initial stage = IDLE
-  0,          // < Initial tuned flag = false
-  TUNE_C,     // < Initial tune L
-  COARSE,     // < Initial fine tune = false
-  0,          // < Initial final tuning step = false
-  POSITIVE,   // < Initial tuning direction 0=pos, 1=neg
-
-  0,          // < Initial C value = 0
-  0,          // < Initial L value = 0
-
-  9999,       // < Best SWR yet
-  0,          // < L value for best SWR yet
-  0,          // < C value for best SWR yet
-};
+// Tuner state variable
+volatile State _tuner_state;
 
 
 #define MAX_C  31
@@ -77,23 +70,6 @@ void tuner_set_tuned();
 void tuner_tune(uint8_t coarse, uint8_t tune_l);
 void tuner_set(uint8_t l, int8_t c);
 uint8_t tuner_is_fine_tuning_L();
-
-typedef struct {
-  uint8_t  L;
-  int8_t   C;
-  uint16_t swr;
-} LogEntry;
-
-LogEntry _log[256] EEMEM;
-uint8_t _log_index = 0;
-void add_log(uint16_t swr) {
-#if LOG_TUING
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    LogEntry entry = {L, C, swr};
-    eeprom_write_block(&entry, &(_log[_log_index++]), sizeof(LogEntry));
-  }
-#endif
-}
 
 
 void tuner_init() {
@@ -120,6 +96,7 @@ void tuner_reset() {
   _tuner_state.c_min = 0;
 
   _tuner_count = 0;
+  swr_end();
 }
 
 void tuner_start() {
@@ -127,15 +104,24 @@ void tuner_start() {
     _tuner_state.stage = STAGE_WAIT;
     _tuner_count = 0;
 
-    if (! tuner_is_tuned())
+    if (tuner_is_tuned()) {
+      tuner_tune(FINE, TUNE_C);
+    } else {
       tuner_set(0, 0);
+      _tuner_state.direction = POSITIVE;
+      tuner_tune(COARSE, TUNE_C);
+    }
 
     led_off();
     led_set(LED_SLOW);
+    swr_start();
   }
 }
 
 void tuner_tune(Grain grain, Element element) {
+  led_off();
+  led_set(LED_FAST);
+
   if ((STAGE_TUNE == _tuner_state.stage) && (grain == _tuner_state.grain) && (element == _tuner_state.element))
     return;
 
@@ -145,18 +131,26 @@ void tuner_tune(Grain grain, Element element) {
   _tuner_state.grain = grain;
   _tuner_state.element = element;
   _tuner_state.final = tuner_is_fine_tuning_L();
-  _tuner_state.direction = POSITIVE;
-
-  led_off();
-  led_set(LED_FAST);
 }
 
 void tuner_set_tuned() {
   _tuner_state.stage = STAGE_IDLE;
   _tuner_state.tuned = 1;
   _tuner_count = 0;
+  led_off();
   led_set(LED_ON);
-  swr_start();
+}
+
+void tuner_pause() {
+  _tuner_state.stage = STAGE_WAIT;
+  led_off();
+  led_set(LED_SLOW);
+}
+
+void tuner_resume() {
+  _tuner_state.stage = STAGE_TUNE;
+  led_off();
+  led_set(LED_FAST);
 }
 
 void tuner_sleep() {
@@ -233,7 +227,7 @@ int8_t sign() {
 }
 
 
-uint8_t tuner_L() {
+uint8_t tuner_current_L() {
   return _tuner_state.L;
 }
 
@@ -241,7 +235,7 @@ uint8_t tuner_min_L() {
   return _tuner_state.l_min;
 }
 
-int8_t tuner_C() {
+int8_t tuner_current_C() {
   return _tuner_state.C;
 }
 
@@ -294,43 +288,48 @@ inline int8_t c_step() {
 
 
 void tuner_poll() {
-  if (tuner_is_waiting() && (10 <= pwr_read())) {
+  if (tuner_is_waiting() && (MIN_POWER <= pwr_read())) {
     _delay_ms(TUNER_FINE_DELAY);
-    // Get initial SWR reading
-    tuner_set_min_swr(swr_read(), tuner_L(), tuner_C());
-    add_log(tuner_min_swr());
-    led_set_swr(tuner_min_swr());
 
-    if (tuner_is_tuned()) {
-      tuner_tune(FINE, TUNE_C);
-    } else {
-      tuner_tune(COARSE, TUNE_C);
-    }
+    uint16_t swr = swr_read();
+    if ((SWR_LOW_POWER == swr) || (SWR_HOPELESS == swr))
+      return;
+
+    // Get and store SWR reading
+    tuner_set_min_swr(swr, tuner_current_L(), tuner_current_C());
+    add_log(swr, tuner_current_L(), tuner_current_C());
+    led_set_swr(swr);
+    tuner_resume();
   } else if (tuner_is_coarse_tuning_C()) {
-    int8_t c = tuner_C();
+    int8_t c = tuner_current_C();
     uint16_t swr;
 
     // search for C
     if ((c < MAX_C) && (c > MIN_C)) {
-      tuner_set(_tuner_state.L, c + sign()*c_step());
+      tuner_set(tuner_current_L(), c + sign()*c_step());
       _delay_ms(TUNER_COARSE_DELAY);
+
       swr = swr_read();
-      add_log(swr);
-      led_set_swr(swr);
       if (SWR_LOW_POWER == swr) {
-        // Cannot continue (low power, wait for more)
-      } else if (swr > SWR_HOPELESS) {
+        tuner_pause();
+        return;
+      }
+
+      add_log(swr, tuner_current_L(), tuner_current_C());
+      led_set_swr(swr);
+
+      if (swr > SWR_HOPELESS) {
         // Continue tuning L coarse
         tuner_tune(COARSE, TUNE_L);
-      } else if (swr < _tuner_state.swr_min) {
+      } else if (swr < tuner_min_swr()) {
         // If better SWR store
-        tuner_set_min_swr(swr, tuner_L(), tuner_C());
+        tuner_set_min_swr(swr, tuner_current_L(), tuner_current_C());
         if (swr < SWR_GOOD) {
           // Quick exit -> done
           tuner_set_tuned();
         } else if (swr < SWR_FAIR) {
-          // Try fine-tuning L
-          tuner_tune(FINE, TUNE_L);
+          // Try fine-tuning C
+          tuner_tune(FINE, TUNE_C);
         }
       }
     } else {
@@ -338,23 +337,28 @@ void tuner_poll() {
       tuner_tune(COARSE, TUNE_L);
     }
   } else if (tuner_is_coarse_tuning_L()) {
-    uint8_t l = tuner_L();
+    uint8_t l = tuner_current_L();
     uint16_t swr;
 
     // search fo L
     if (l < MAX_L) {
       tuner_set(l+l_step(), 0);
       _delay_ms(TUNER_COARSE_DELAY);
+
       swr = swr_read();
-      add_log(swr);
-      led_set_swr(swr);
       if (SWR_LOW_POWER == swr) {
-        // pass
-      } else if (swr > SWR_HOPELESS) {
-        l = MAX_L;
+        tuner_pause();
+        return;
+      }
+
+      add_log(swr, tuner_current_L(), tuner_current_C());
+      led_set_swr(swr);
+
+      if (swr > SWR_HOPELESS) {
+        // pass...
       } else if (swr < tuner_min_swr()) {
         // If better SWR is found
-        tuner_set_min_swr(swr, tuner_L(), tuner_C());
+        tuner_set_min_swr(swr, tuner_current_L(), tuner_current_C());
         if (swr < SWR_GOOD) {
           // Quick exit -> done
           tuner_set_tuned();
@@ -367,26 +371,35 @@ void tuner_poll() {
       // Continue coarse tuning C
       tuner_tune(COARSE, TUNE_C);
     } else if (POSITIVE == tuner_direction()) {
+      // If L = MAX_L and Cs are at input, try Cs at output
       tuner_set_direction(NEGATIVE);
       tuner_set(0, 0);
-      tuner_tune(COARSE, tuner_C());
+      tuner_tune(COARSE, TUNE_C);
     } else {
-      // Continue fine tuning L
+      // This branch basically means failed tune.
+      // So set to best match yet and enter fine-tune C (this will end the tuneing).
       tuner_set(tuner_min_L(), tuner_min_C());
-      tuner_tune(FINE, TUNE_C);
+      tuner_tune(FINE, TUNE_L);
     }
   } else if (tuner_is_fine_tuning_C()) {
-    int8_t c = tuner_C();
+    int8_t c = tuner_current_C();
     uint16_t swr;
 
     if (c < MAX_C) {
-      tuner_set(tuner_L(), c+1);
+      tuner_set(tuner_current_L(), c+1);
       _delay_ms(TUNER_FINE_DELAY);
+
       swr = swr_read();
-      add_log(swr);
+      if (SWR_LOW_POWER == swr) {
+        tuner_pause();
+        return;
+      }
+
+      add_log(swr, tuner_current_L(), tuner_current_C());
       led_set_swr(swr);
+
       if (swr < tuner_min_swr()) {
-        tuner_set_min_swr(swr, tuner_L(), tuner_C());
+        tuner_set_min_swr(swr, tuner_current_L(), tuner_current_C());
         if (swr < SWR_GOOD) {
           tuner_set_tuned();
         }
@@ -394,14 +407,22 @@ void tuner_poll() {
       }
     }
 
+    // If increasing C does not find better VSWR -> try decreasing C
     if (c > MIN_C) {
-      tuner_set(tuner_L(), c-1);
+      tuner_set(tuner_current_L(), c-1);
       _delay_ms(TUNER_FINE_DELAY);
+
       swr = swr_read();
-      add_log(swr);
+      if (SWR_LOW_POWER == swr) {
+        tuner_pause();
+        return;
+      }
+
+      add_log(swr, tuner_current_L(), tuner_current_C());
       led_set_swr(swr);
+
       if (swr < tuner_min_swr()) {
-        tuner_set_min_swr(swr, tuner_L(), tuner_C());
+        tuner_set_min_swr(swr, tuner_current_L(), tuner_current_C());
         if (swr < SWR_GOOD) {
           tuner_set_tuned();
         }
@@ -412,17 +433,24 @@ void tuner_poll() {
     tuner_set(tuner_min_L(), tuner_min_C());
     tuner_tune(FINE, TUNE_L);
   } else if (tuner_is_fine_tuning_L()) {
-    uint8_t l = tuner_L();
+    uint8_t l = tuner_current_L();
     uint16_t swr;
 
     if (l < MAX_L) {
-      tuner_set(l+1, tuner_C());
+      tuner_set(l+1, tuner_current_C());
       _delay_ms(TUNER_FINE_DELAY);
+
       swr = swr_read();
-      add_log(swr);
+      if (SWR_LOW_POWER == swr) {
+        tuner_pause();
+        return;
+      }
+
+      add_log(swr, tuner_current_L(), tuner_current_C());
       led_set_swr(swr);
+
       if (swr < tuner_min_swr()) {
-        tuner_set_min_swr(swr, tuner_L(), tuner_C());
+        tuner_set_min_swr(swr, tuner_current_L(), tuner_current_C());
         if (swr < SWR_GOOD) {
           tuner_set_tuned();
         }
@@ -431,13 +459,20 @@ void tuner_poll() {
     }
 
     if (l > MIN_L) {
-      tuner_set(l-1, tuner_C());
+      tuner_set(l-1, tuner_current_C());
       _delay_ms(TUNER_FINE_DELAY);
+
       swr = swr_read();
-      add_log(swr);
+      if (SWR_LOW_POWER == swr) {
+        tuner_pause();
+        return;
+      }
+
+      add_log(swr, tuner_current_L(), tuner_current_C());
       led_set_swr(swr);
+
       if (swr < tuner_min_swr()) {
-        tuner_set_min_swr(swr, tuner_L(), tuner_C());
+        tuner_set_min_swr(swr, tuner_current_L(), tuner_current_C());
         if (swr < SWR_GOOD) {
           tuner_set_tuned();
         }
@@ -445,6 +480,7 @@ void tuner_poll() {
       }
     }
 
+    // If nothing helps, take current minimum
     tuner_set(tuner_min_L(), tuner_min_C());
     if (tuner_is_final_tuning())
       tuner_set_tuned();
@@ -462,12 +498,14 @@ void tuner_poll() {
 void tuner_tick() {
   if (tuner_is_waiting()) {
     _tuner_count++;
-    if (5000 == _tuner_count) {
+    if (5000 <= _tuner_count) {
       _tuner_state.stage = STAGE_IDLE;
+      _tuner_count = 0;
+      led_set(LED_ON);
     }
   }
 
-#if POWER_DOWN_ON_IDLE
+#ifdef POWER_DOWN_ON_IDLE
   if (tuner_is_idle()) {
     _tuner_count++;
     if (10000 == _tuner_count) {

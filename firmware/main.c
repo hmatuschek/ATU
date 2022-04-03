@@ -33,14 +33,12 @@ int main()
   tick_start();
 
   while (1) {
-    Button button = button_state();
-
-    if (tuner_is_idle() && (BUTTON_CLICK == button)) {
+    if (tuner_is_idle() && (BUTTON_CLICK == button_state())) {
       tuner_start();
     } else if (tuner_is_sleeping()) {
-      set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+      /*set_sleep_mode(SLEEP_MODE_PWR_DOWN);
       sleep_mode();
-      tuner_wakeup();
+      tuner_wakeup();*/
     } else {
       tuner_poll();
     }

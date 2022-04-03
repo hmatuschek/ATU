@@ -1,8 +1,8 @@
 #include <avr/io.h>
 
-#define RESET_ANIMATION     0
-#define POWER_DOWN_ON_IDLE  1
-#define LOG_TUING           0
+#cmakedefine LOG_TUING
+#cmakedefine RESET_ANIMATION
+#cmakedefine POWER_DOWN_ON_IDLE
 
 #define DDR_C1              DDRC
 #define PORT_C1             PORTC
@@ -83,3 +83,6 @@
 #define TUNER_FINE_DELAY    20
 
 #define TICK_NUM_CALLBACKS  64
+
+// Minimum required power in 10mW
+#define MIN_POWER           100  //<- needs 1W

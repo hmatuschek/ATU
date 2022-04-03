@@ -16,6 +16,7 @@ void button_init() {
   PORT_BUTTON &= ~(1<<BIT_BUTTON);
   _last_button = ((PIN_BUTTON>>BIT_BUTTON)&1);
   _button_state = BUTTON_NONE;
+  _button_count = 0;
 
   // Enable pin-change interrupt on PCIE22
   PCICR  |= (1<<PCIE0);
@@ -37,6 +38,7 @@ void button_tick() {
   } else if ((1 == button) && (0 == _last_button) && (2000 > _button_count)) {
     // on button up and short duration
     _button_state = BUTTON_CLICK;
+    _button_count = 0;
   } else if (2000 == _button_count) {
     // on long button press
     _button_state = BUTTON_HOLD;

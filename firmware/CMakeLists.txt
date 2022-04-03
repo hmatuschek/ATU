@@ -36,9 +36,9 @@ add_definitions("-Os")
 # Firmware source
 ##########################################################################
 set(firmware_SOURCES main.c
-  relay.c button.c swr.c led.c tick.c tuner.c)
+  relay.c button.c swr.c led.c tick.c tuner.c log.c)
 set(firmware_HEADERS
-  relay.h button.h swr.h led.h tick.h tuner.h)
+  relay.h button.h swr.h led.h tick.h tuner.h log.c)
 
 # !!! UGLY HACK TO GET RID OF "-rdynamic" flags. !!!
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")

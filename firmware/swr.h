@@ -19,9 +19,10 @@ void swr_init();
 void swr_start();
 void swr_end();
 
-/** Measures SWR and PWR. */
+/** Measures VSWR in 100th, that is 234 is VSWR 1:2.34. */
 uint16_t swr_read();
-/** Reads PWR. */
-uint8_t pwr_read();
+
+/** Reads PWR in 0.01W that is, 100 = 1W. */
+uint16_t pwr_read();
 
 #endif // __SWR_H__
