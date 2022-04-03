@@ -20,8 +20,8 @@ message(STATUS "        Power down on idle: ${POWER_DOWN_ON_IDLE}")
 message(STATUS "        Log to EEPROM: ${LOG_TUING}")
 
 SET(FIRMWARE_VERSION_MAJOR 0)
-SET(FIRMWARE_VERSION_MINOR 1)
-SET(FIRMWARE_VERSION_PATCH 1)
+SET(FIRMWARE_VERSION_MINOR 2)
+SET(FIRMWARE_VERSION_PATCH 0)
 
 configure_file(${PROJECT_SOURCE_DIR}/firmware/config.h.in
   ${PROJECT_BINARY_DIR}/firmware/config.h)
