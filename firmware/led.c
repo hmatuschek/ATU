@@ -76,6 +76,25 @@ void led_set_swr(uint16_t swr) {
     PORT_LED3 &= ~(1<<BIT_LED3);
 }
 
+void led_set_power(uint16_t pwr) {
+  if (100 < pwr)
+    PORT_LED0 |=  (1<<BIT_LED0);
+  else
+    PORT_LED0 &= ~(1<<BIT_LED0);
+  if (200 < pwr)
+    PORT_LED1 |= (1<<BIT_LED1);
+  else
+    PORT_LED1 &= ~(1<<BIT_LED1);
+  if (400 < pwr)
+    PORT_LED2 |= (1<<BIT_LED2);
+  else
+    PORT_LED2 &= ~(1<<BIT_LED2);
+  if (800 < pwr)
+    PORT_LED3 |= (1<<BIT_LED3);
+  else
+    PORT_LED3 &= ~(1<<BIT_LED3);
+}
+
 void led_tick() {
   if (LED_SLOW == _led_state) {
     _count++;

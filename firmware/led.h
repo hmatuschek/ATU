@@ -34,6 +34,9 @@ void led_set(LEDState state);
 /** Set the SWR LED bar-graph.
  * @ingroup led */
 void led_set_swr(uint16_t swr);
+/** Set the SWR LED bar-graph.
+ * @ingroup led */
+void led_set_power(uint16_t pwr);
 /** Turns all LEDs off.
  * @ingroup led */
 void led_off();
