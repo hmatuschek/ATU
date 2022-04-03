@@ -85,4 +85,4 @@
 #define TICK_NUM_CALLBACKS  64
 
 // Minimum required power in 10mW
-#define MIN_POWER           100  //<- needs 1W
+#define MIN_POWER           10  //<- needs 100mW

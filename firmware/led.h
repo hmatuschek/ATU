@@ -21,7 +21,8 @@ typedef enum {
   LED_ON,    ///< Constantly on.
   LED_OFF,   ///< Constantly off.
   LED_SLOW,  ///< Blinking slowly.
-  LED_FAST   ///< Blinking fast.
+  LED_FAST,  ///< Blinking fast.
+  LED_ERROR  ///< Blinking all LEDs.
 } LEDState;
 
 /** Initializes the LED interface.

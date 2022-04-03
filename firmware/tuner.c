@@ -99,33 +99,48 @@ void tuner_reset() {
   swr_end();
 }
 
+uint8_t tuner_current_L() {
+  return _tuner_state.L;
+}
+
+uint8_t tuner_min_L() {
+  return _tuner_state.l_min;
+}
+
+int8_t tuner_current_C() {
+  return _tuner_state.C;
+}
+
+int8_t tuner_min_C() {
+  return _tuner_state.c_min;
+}
+
+uint16_t tuner_min_swr() {
+  return _tuner_state.swr_min;
+}
+
+
 void tuner_start() {
   if (tuner_is_idle()) {
-    _tuner_state.stage = STAGE_WAIT;
-    _tuner_count = 0;
-
     if (tuner_is_tuned()) {
+      tuner_set(tuner_min_L(), tuner_min_C());
       tuner_tune(FINE, TUNE_C);
     } else {
       tuner_set(0, 0);
       _tuner_state.direction = POSITIVE;
       tuner_tune(COARSE, TUNE_C);
     }
+    _tuner_count = 0;
+    _tuner_state.stage = STAGE_WAIT;
 
-    led_off();
     led_set(LED_SLOW);
     swr_start();
   }
 }
 
 void tuner_tune(Grain grain, Element element) {
-  led_off();
-  led_set(LED_FAST);
-
   if ((STAGE_TUNE == _tuner_state.stage) && (grain == _tuner_state.grain) && (element == _tuner_state.element))
     return;
-
-  _tuner_count = 0;
 
   _tuner_state.stage = STAGE_TUNE;
   _tuner_state.grain = grain;
@@ -137,26 +152,24 @@ void tuner_set_tuned() {
   _tuner_state.stage = STAGE_IDLE;
   _tuner_state.tuned = 1;
   _tuner_count = 0;
-  led_off();
   led_set(LED_ON);
 }
 
 void tuner_pause() {
   _tuner_state.stage = STAGE_WAIT;
-  led_off();
+  _tuner_count = 0;
   led_set(LED_SLOW);
 }
 
 void tuner_resume() {
   _tuner_state.stage = STAGE_TUNE;
-  led_off();
+  _tuner_count = 0;
   led_set(LED_FAST);
 }
 
 void tuner_sleep() {
   _tuner_state.stage = STAGE_SLEEP;
   led_set(LED_OFF);
-  led_off();
   swr_end();
 }
 
@@ -226,27 +239,6 @@ int8_t sign() {
   return (POSITIVE == _tuner_state.direction) ? 1 : -1;
 }
 
-
-uint8_t tuner_current_L() {
-  return _tuner_state.L;
-}
-
-uint8_t tuner_min_L() {
-  return _tuner_state.l_min;
-}
-
-int8_t tuner_current_C() {
-  return _tuner_state.C;
-}
-
-int8_t tuner_min_C() {
-  return _tuner_state.c_min;
-}
-
-uint16_t tuner_min_swr() {
-  return _tuner_state.swr_min;
-}
-
 void tuner_set_min_swr(uint16_t swr, uint8_t L, int8_t C) {
   _tuner_state.swr_min = swr;
   _tuner_state.l_min = L;
@@ -265,7 +257,6 @@ void tuner_set(uint8_t l, int8_t c) {
   uint8_t io = (c<0) ? 1 : 0;
   c = ABS(c);
 
-  relay_clear(RELAY_ALL);
   relay_set((((uint16_t)c)<<C_SHIFT) | (((uint16_t) l)<<L_SHIFT) | (((uint16_t) io)<<IO_SHIFT));
 }
 
@@ -292,7 +283,7 @@ void tuner_poll() {
     _delay_ms(TUNER_FINE_DELAY);
 
     uint16_t swr = swr_read();
-    if ((SWR_LOW_POWER == swr) || (SWR_HOPELESS == swr))
+    if (SWR_LOW_POWER == swr)
       return;
 
     // Get and store SWR reading
